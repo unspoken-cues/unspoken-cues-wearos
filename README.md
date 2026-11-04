@@ -32,11 +32,14 @@ The second command requires a connected Wear OS device/emulator. The debug APK i
 
 ## Using the watch
 
-- The status screen shows the selected cue and its meaning. Scroll to reach controls
-  on smaller round screens. Swiping or turning the bezel never changes status.
-- **Color locked → Unlock color → choose a cue** deliberately changes the watch
+- The cue face shows a large symbol, color name, and short meaning. Color is never
+  the only signal: Green = check mark, Yellow = caution triangle, Red = stop octagon,
+  Purple = question mark. **Options → Cue guide** explains every cue without color.
+- **Options** contains sharing, color lock, and last phone update. Swiping or turning
+  the bezel never changes status. Scroll when using larger text or a smaller watch.
+- **Options → Color locked → Unlock color → choose a cue** deliberately changes the watch
   color and immediately locks it again. Back/Cancel leaves the color unchanged.
-- **Share profile** works while color is locked. Scan the QR with the **Unspoken
+- **Options → Share profile** works while color is locked. Scan the QR with the **Unspoken
   Cues phone app**; the existing custom link is not a public web profile. Close,
   Back, or a 30-second timeout returns to the status screen.
 - Private/missing profiles cannot be shared. Change privacy/profile on the phone.
