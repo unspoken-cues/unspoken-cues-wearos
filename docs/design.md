@@ -4,7 +4,13 @@ The phone remains the account/profile editor. The watch shows one of the same fo
 statuses and the exact same QR card link. The initial app runs on Wear OS 3+ (API 30+).
 
 ## Behavior
-- Full-screen cue with its name and meaning; no swipe or rotary status cycling.
+- Full-screen cue with one large monochrome symbol, its color name, and a short meaning.
+  Green uses a check mark, Yellow a caution triangle, Red a stop octagon, and Purple
+  a question mark. No swipe or rotary status cycling.
+- Options holds sharing, the color lock, a neutral Cue guide with the full meanings,
+  profile availability, and last-update time. Keep these details off the cue face.
+- Announce the color, full meaning, and symbol together for screen readers. Keep
+  controls at least 48dp and allow vertical scrolling for larger system text.
 - Start color-locked. Unlock requires a separate confirmation screen; choosing a
   new color locks it again. Status and lock persist across process restarts.
 - A deliberate phone update can replace the watch cue even while locally locked.

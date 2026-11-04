@@ -23,23 +23,43 @@ class WatchAppTest {
     @Test fun swipeDoesNotChangeLockedStatus() {
         launch()
         compose.onNodeWithTag("status").performTouchInput { swipeLeft(); swipeRight() }
-        compose.onNodeWithText("Yellow").assertIsDisplayed()
-        compose.onNodeWithText("Color locked").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Yellow.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Options").assertIsDisplayed()
     }
     @Test fun sharingWorksWhileLockedAndTimesOutToSameColor() {
         launch()
+        compose.onNodeWithText("Options").performScrollTo().performClick()
         compose.onNodeWithText("Share profile").performScrollTo().performClick()
         compose.onNodeWithTag("profile-qr").assertExists()
         compose.mainClock.advanceTimeBy(30_100)
-        compose.onNodeWithText("Yellow").assertIsDisplayed()
-        compose.onNodeWithText("Color locked").assertExists()
+        compose.onNodeWithContentDescription("Yellow.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Options").assertExists()
     }
     @Test fun colorChangeRequiresConfirmationAndRelocks() {
         launch()
+        compose.onNodeWithText("Options").performScrollTo().performClick()
         compose.onNodeWithText("Color locked").performScrollTo().performClick()
         compose.onNodeWithText("Unlock color").performScrollTo().performClick()
         compose.onNodeWithText("Red").performScrollTo().performClick()
-        compose.onNodeWithText("Red").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Red.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Options").performScrollTo().performClick()
         compose.onNodeWithText("Color locked").assertExists()
+    }
+
+    @Test fun cueIsReadableWithoutColorAndDetailsStayInOptions() {
+        launch()
+        compose.onNodeWithContentDescription("Yellow. Proceed with care. Caution triangle symbol.")
+            .assertIsDisplayed()
+        compose.onNodeWithText("Share profile").assertDoesNotExist()
+        compose.onNodeWithText("Options").performScrollTo().performClick()
+        compose.onNodeWithText("Cue guide").performScrollTo().performClick()
+        CueStatus.entries.forEach { cue ->
+            compose.onNodeWithContentDescription("${cue.label}. ${cue.meaning}. " + when (cue) {
+                CueStatus.GREEN -> "Check mark"
+                CueStatus.YELLOW -> "Caution triangle"
+                CueStatus.RED -> "Stop octagon"
+                CueStatus.PURPLE -> "Question mark"
+            } + " symbol.").performScrollTo().assertIsDisplayed()
+        }
     }
 }

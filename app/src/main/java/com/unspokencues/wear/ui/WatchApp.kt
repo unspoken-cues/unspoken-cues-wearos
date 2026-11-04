@@ -11,6 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -21,7 +23,7 @@ import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
 
-private enum class Screen { STATUS, UNLOCK, SELECT, SHARE }
+private enum class Screen { STATUS, OPTIONS, GUIDE, UNLOCK, SELECT, SHARE }
 
 @Composable
 fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit) {
@@ -41,12 +43,31 @@ fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit) {
             screen = Screen.STATUS
         }
         when (screen) {
-            Screen.STATUS -> StatusScreen(state,
-                onShare = { screen = Screen.SHARE },
-                onChange = { screen = if (state.locked) Screen.UNLOCK else Screen.SELECT })
+            Screen.STATUS -> StatusScreen(state) { screen = Screen.OPTIONS }
+            Screen.OPTIONS -> WatchColumn {
+                Heading("Options")
+                Action("Share profile", enabled = state.shareLink != null) { screen = Screen.SHARE }
+                Action(if (state.locked) "Color locked" else "Change color") {
+                    screen = if (state.locked) Screen.UNLOCK else Screen.SELECT
+                }
+                Action("Cue guide") { screen = Screen.GUIDE }
+                if (state.shareLink == null) Body(
+                    if (state.profile?.isPublic == false) "Profile private. Edit on phone."
+                    else "Sync your profile from your phone.")
+                if (state.receivedAt > 0) Body(
+                    "Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(state.receivedAt))}")
+                Action("Back to cue") { screen = Screen.STATUS }
+            }
+            Screen.GUIDE -> WatchColumn {
+                Heading("Cue guide")
+                CueStatus.entries.forEach { cue ->
+                    CueIdentity(cue, Color(0xFFFCFBF8), compact = true)
+                    Spacer(Modifier.height(12.dp))
+                }
+                Action("Back to cue") { screen = Screen.STATUS }
+            }
             Screen.UNLOCK -> WatchColumn {
-                Heading("Change your color?")
-                Body("Swipes never change your cue. Unlock to choose a new color.")
+                Heading("Change color?")
                 Action("Unlock color") {
                     onStateChange(state.unlock())
                     screen = Screen.SELECT
@@ -57,9 +78,13 @@ fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit) {
                 Heading("Watch color")
                 Body("Phone updates replace this choice.")
                 // Neutral buttons: never show four competing status colors together.
-                CueStatus.entries.forEach { cue -> Action(cue.label) {
-                    onStateChange(state.select(cue)); screen = Screen.STATUS
-                } }
+                CueStatus.entries.forEach { cue ->
+                    Chip(onClick = { onStateChange(state.select(cue)); screen = Screen.STATUS },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                        colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF252831)),
+                        icon = { CueSymbol(cue, Color(0xFFFCFBF8), Modifier.size(24.dp)) },
+                        label = { Text(cue.label) }, secondaryLabel = { Text(cue.shortMeaning) })
+                }
                 Action("Cancel") {
                     onStateChange(state.copy(locked = true)); screen = Screen.STATUS
                 }
@@ -72,30 +97,47 @@ fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit) {
 }
 
 @Composable
-private fun StatusScreen(state: WatchState, onShare: () -> Unit, onChange: () -> Unit) {
+private fun StatusScreen(state: WatchState, onOptions: () -> Unit) {
     val cue = state.status
-    WatchColumn(background = cue?.let { Color(it.argb) } ?: Color(0xFF15171C),
-        modifier = Modifier.testTag("status")) {
-        if (cue == null) {
-            Heading("Your cue, on your wrist")
-            Body("Pair your watch, then open Unspoken Cues on your phone and sign in.")
-            Body("Your status and profile will appear here.")
-        } else {
-            val ink = Color(cue.ink)
-            Text(cue.label, color = ink, fontSize = 27.sp, fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Text(cue.meaning, color = ink, fontSize = 14.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(4.dp))
-            Action("Share profile", enabled = state.shareLink != null, onClick = onShare)
-            Action(if (state.locked) "Color locked" else "Change color", onClick = onChange)
-            if (state.shareLink == null) Text(
-                if (state.profile?.isPublic == false) "Profile private · change on phone" else "Open phone to sync your profile",
-                color = ink, fontSize = 11.sp, textAlign = TextAlign.Center)
-            if (state.receivedAt > 0) Text(
-                "Last phone update ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(state.receivedAt))}",
-                color = ink, fontSize = 10.sp, textAlign = TextAlign.Center)
+    Box(Modifier.fillMaxSize().testTag("status")
+        .background(cue?.let { Color(it.argb) } ?: Color(0xFF15171C))) {
+        // Scroll only when needed (for example, large system text). Keep all content
+        // inside the round display and preserve normal system swipe navigation.
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = 32.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center) {
+            if (cue == null) {
+                Heading("Waiting for phone")
+                Spacer(Modifier.height(8.dp))
+                Body("Pair your watch, then sync in Unspoken Cues.")
+                Spacer(Modifier.height(12.dp))
+                Action("Options", onClick = onOptions)
+            } else {
+                val ink = Color(cue.ink)
+                CueIdentity(cue, ink)
+                Spacer(Modifier.height(12.dp))
+                Chip(onClick = onOptions, modifier = Modifier.width(112.dp).heightIn(min = 48.dp),
+                    colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF15171C),
+                        contentColor = Color(0xFFFCFBF8)),
+                    label = { Text("Options", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) })
+            }
         }
+    }
+}
+
+@Composable
+private fun CueIdentity(cue: CueStatus, ink: Color, compact: Boolean = false) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().clearAndSetSemantics {
+            contentDescription = "${cue.label}. ${cue.meaning}. ${cue.symbolName} symbol."
+        }) {
+        CueSymbol(cue, ink, Modifier.size(if (compact) 32.dp else 52.dp).testTag("cue-symbol-${cue.name}"))
+        Spacer(Modifier.height(if (compact) 4.dp else 8.dp))
+        Text(cue.label, color = ink, fontSize = if (compact) 20.sp else 28.sp,
+            fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text(if (compact) cue.meaning else cue.shortMeaning, color = ink,
+            fontSize = 13.sp, textAlign = TextAlign.Center)
     }
 }
 
@@ -137,6 +179,6 @@ private fun WatchColumn(modifier: Modifier = Modifier, background: Color = Color
 }
 @Composable private fun Action(text: String, enabled: Boolean = true, onClick: () -> Unit) {
     Chip(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-        colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF15171C), contentColor = Color.White),
+        colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF252831), contentColor = Color(0xFFFCFBF8)),
         label = { Text(text, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) })
 }
