@@ -12,12 +12,14 @@ local until a newer phone update arrives. Two-way backend synchronization is fut
 
 ## Open and run
 
-1. Open this folder as a project in Android Studio. Use JDK 21 or newer and install
-   Android SDK 37 (the same compile SDK as the phone project). Let Gradle sync.
+1. Open this folder as a project in Android Studio and install Android SDK 37
+   (the same compile SDK as the phone project). The current daemon criteria request
+   Java 25 through the toolchain resolver; see the handoff for build details. Let Gradle sync.
 2. Pair a Wear OS emulator or Samsung Galaxy Watch with your Android phone using
    the Wear OS/Galaxy Wearable setup flow. Install Google Play services on both.
-3. Build/install **debug** on the watch. Install the updated phone app from
-   `unspoken-cues-phone` on the paired phone. Open it, sign in, and finish onboarding.
+3. Build/install **debug** on the watch. Install the updated phone app from the
+   sibling phone checkout (`../UnspokenQueues` in this workspace) on the paired phone.
+   Open it, sign in, and finish onboarding.
 4. Open the watch app. It receives the phone's cue, display name, profile visibility,
    and card token. It caches them for disconnected use. No Supabase credentials are
    needed in this watch project.
@@ -28,7 +30,8 @@ local until a newer phone update arrives. Two-way backend synchronization is fut
 ```
 
 The second command requires a connected Wear OS device/emulator. The debug APK is
-`app/build/outputs/apk/debug/app-debug.apk`. This repository is on `luana-wearos`.
+`app/build/outputs/apk/debug/app-debug.apk`. The original implementation plan referred
+to `luana-wearos`; check your actual branch rather than assuming that historical name.
 
 ## Using the watch
 
@@ -84,6 +87,7 @@ across both projects before publishing. Do not ship mismatched release IDs.
 Design and implementation notes: [design](docs/design.md), [plan](docs/implementation-plan.md).
 
 ## Docs
+- **Start here for engineering takeover:** [Wear OS handoff](docs/handoff/README.md) — source map, architecture/protocol, setup, testing, limitations, and troubleshooting; links to the phone/backend handoff.
 - Contribution workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Security/secret handling: [SECURITY.md](SECURITY.md)
 
