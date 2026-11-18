@@ -26,7 +26,8 @@ import java.util.Date
 private enum class Screen { STATUS, OPTIONS, GUIDE, UNLOCK, SELECT, SHARE }
 
 @Composable
-fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit) {
+fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit,
+             onCueSelected: (CueStatus) -> Unit) {
     MaterialTheme {
         var screen by rememberSaveable { mutableStateOf(Screen.STATUS) }
         val link = state.shareLink
@@ -54,6 +55,11 @@ fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit) {
                 if (state.shareLink == null) Body(
                     if (state.profile?.isPublic == false) "Profile private. Edit on phone."
                     else "Sync your profile from your phone.")
+                when (state.result) {
+                    CueResult.SAVED -> Body("Cue saved to your profile.")
+                    CueResult.SUPERSEDED -> Body("Your phone has a newer cue.")
+                    null -> Unit
+                }
                 if (state.receivedAt > 0) Body(
                     "Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(state.receivedAt))}")
                 Action("Back to cue") { screen = Screen.STATUS }
@@ -76,10 +82,11 @@ fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit) {
             }
             Screen.SELECT -> WatchColumn {
                 Heading("Watch color")
-                Body("Phone updates replace this choice.")
+                Body(if (state.authority != null) "Saves to your profile through your phone."
+                    else "This choice applies only to your watch.")
                 // Neutral buttons: never show four competing status colors together.
                 CueStatus.entries.forEach { cue ->
-                    Chip(onClick = { onStateChange(state.select(cue)); screen = Screen.STATUS },
+                    Chip(onClick = { onCueSelected(cue); screen = Screen.STATUS },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                         colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF252831)),
                         icon = { CueSymbol(cue, Color(0xFFFCFBF8), Modifier.size(24.dp)) },
@@ -116,6 +123,10 @@ private fun StatusScreen(state: WatchState, onOptions: () -> Unit) {
             } else {
                 val ink = Color(cue.ink)
                 CueIdentity(cue, ink)
+                if (state.pending != null) {
+                    Text("Waiting for phone to save", color = ink, fontSize = 13.sp,
+                        textAlign = TextAlign.Center)
+                }
                 Spacer(Modifier.height(12.dp))
                 Chip(onClick = onOptions, modifier = Modifier.width(112.dp).heightIn(min = 48.dp),
                     colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF15171C),

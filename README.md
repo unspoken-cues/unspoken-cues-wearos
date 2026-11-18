@@ -7,8 +7,9 @@ Older Samsung watches running Tizen are not supported.
 Target package: `com.unspokencues.wear`
 
 ## Status
-Initial Android app. Phone-to-watch sync is implemented; watch color changes are
-local until a newer phone update arrives. Two-way backend synchronization is future work.
+With an updated, signed-in companion phone, choosing a watch cue updates your global
+profile cue. The watch shows “Waiting for phone to save” until the phone confirms the
+profile write. Older phone snapshots still support local watch colors.
 
 ## Open and run
 
@@ -41,7 +42,8 @@ to `luana-wearos`; check your actual branch rather than assuming that historical
 - **Options** contains sharing, color lock, and last phone update. Swiping or turning
   the bezel never changes status. Scroll when using larger text or a smaller watch.
 - **Options → Color locked → Unlock color → choose a cue** deliberately changes the watch
-  color and immediately locks it again. Back/Cancel leaves the color unchanged.
+  color and immediately locks it again. With two-way sync, **Options** shows the save
+  result. Your latest pending choice survives closing the app and restarting the watch.
 - **Options → Share profile** works while color is locked. Scan the QR with the **Unspoken
   Cues phone app**; the existing custom link is not a public web profile. Close,
   Back, or a 30-second timeout returns to the status screen.
@@ -58,23 +60,28 @@ to `luana-wearos`; check your actual branch rather than assuming that historical
 The companion patch in the phone repository publishes schema 1 DataItems at
 `/unspoken-cues/state`: `active`, `status`, `name`, `token`, `public`, `revision`, and `publisher`.
 It retries while the phone app is open. Play services transfers the latest DataItem
-after reconnection; the watch background listener accepts only newer revisions.
+after reconnection. The watch background listener accepts newer revisions.
 Each phone installation has a publisher generation, allowing recovery after phone
 data reset even if its clock changed. Retired generations cannot restore old data.
-Receiving a phone update always relocks the watch. Duplicate snapshots do not
-override a locally chosen color when reopening the app.
+The updated phone includes a session generation, committed cue revision and watch
+receipt. The watch publishes its latest selection to `/unspoken-cues/cue-request`.
+The phone reconciles the request on delivery, while open, and through **Sync now**.
+An explicit phone edit supersedes an older pending watch choice. A pending watch
+choice survives unrelated profile updates and superseded receipts. Account changes
+and sign-out clear the old choice when the new snapshot arrives.
 
 Data Layer requires **matching application IDs and signing certificates** on both
 devices ([Android documentation](https://developer.android.com/training/wearables/data/overview)).
 The watch debug variant uses `com.example.unspokenqueues`, matching the current
-phone project; both must use the same debug signing key. Release stays
-`com.unspokencues.wear` as documented here. **Production sync is not release-ready:**
-the team must coordinate a shared release application ID and signing identity
-across both projects before publishing. Do not ship mismatched release IDs.
+phone project; both must use the same debug signing key. The default release application ID is
+`com.unspokencues.wear`. Configure a paired release with the installed phone's
+application ID and signing certificate. [Paired build command](docs/design/two-way-cue-sync.md#paired-builds)
 
 ## Manual acceptance checks
 
-- Set each of the four cues on the phone: the watch shows that exact name/meaning/color.
+- Set each of the four cues on both devices. Confirm the same cue on the watch, the phone
+  and the authenticated profile row. Queue a watch choice while disconnected, reconnect,
+  then use **Sync now** and check that the pending message clears.
 - Swipe in every direction and rotate the bezel while locked: cue stays unchanged;
   system Back and navigation remain available.
 - Cancel unlock, then confirm unlock and choose a new cue: only confirmed selection

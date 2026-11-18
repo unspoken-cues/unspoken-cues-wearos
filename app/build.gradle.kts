@@ -23,6 +23,11 @@ android {
 
 // Android application IDs can be overridden per variant without renaming source packages.
 androidComponents {
+    // A paired release must use the phone's installed application ID and signing certificate.
+    val phoneReleaseId = providers.gradleProperty("companionApplicationId")
+    onVariants(selector().withBuildType("release")) {
+        if (phoneReleaseId.isPresent) it.applicationId.set(phoneReleaseId)
+    }
     onVariants(selector().withBuildType("debug")) {
         it.applicationId.set("com.example.unspokenqueues")
     }

@@ -24,23 +24,25 @@ On Windows use `.\gradlew.bat`. If the wrapper is not executable locally, invoke
 ./gradlew connectedDebugAndroidTest
 ```
 
-Select the Wear OS device explicitly when multiple targets are present, for example with `ANDROID_SERIAL=<watch-serial>`. Device instrumentation requires a suitable watch target; pure JVM tests do not. These commands were documented, not executed during this documentation-only change.
+Select the Wear OS device explicitly when multiple targets are present, for example with `ANDROID_SERIAL=<watch-serial>`. Device instrumentation requires a suitable watch target; pure JVM tests do not. For sync build verification on macOS run `bash gradlew assembleDebug testDebugUnitTest compileDebugAndroidTestKotlin lintDebug --max-workers=2` with Android Studio’s JDK and the installed Android SDK.
 
 | Source | Coverage |
 | --- | --- |
 | `app/src/test/java/com/unspokencues/wear/WatchStateTest.kt` | Lock/select/relock rules, card/profile validation, inactive clearing, snapshot order/new and retired publishers |
+| `app/src/test/java/com/unspokencues/wear/CueSyncTest.kt` | Exact, superseded and delayed receipts, changed generation and legacy snapshots |
+| `app/src/androidTest/java/com/unspokencues/wear/WatchCueSyncTest.kt` | Four actual picker selections with an injected transport, wire fields, pending recovery from a reopened store, delayed receipts, account changes, malformed input and sign-out |
 | `app/src/test/java/com/unspokencues/wear/QrTest.kt` | Card QR module encoding/ZXing decode |
 | `app/src/androidTest/java/com/unspokencues/wear/WatchAppTest.kt` | Accessible cue identity, guide/options, accidental gesture protection, unlock/selection, locked sharing and timeout |
 
-Reports: `app/build/reports/tests/testDebugUnitTest/index.html`, `app/build/test-results/testDebugUnitTest/`, `app/build/reports/lint-results-debug.html`, and connected results under `app/build/reports/androidTests/connected/` / `app/build/outputs/androidTest-results/connected/`. A UI/model test does not prove paired-device delivery, WatchStore persistence/stale-callback protection, receiver-driven screen changes or backend authorization. No checked-in Actions workflow or automated cross-device transport suite exists.
+Reports: `app/build/reports/tests/testDebugUnitTest/index.html`, `app/build/test-results/testDebugUnitTest/`, `app/build/reports/lint-results-debug.html`, and connected results under `app/build/reports/androidTests/connected/` / `app/build/outputs/androidTest-results/connected/`. The injected transport exercises the watch UI, preference storage, wire serialization and receipt decoding. Verify actual Play services pairing and authenticated server writes with the device checks below.
 
 ## Device acceptance
 
 1. Start with empty watch data: Waiting for phone, no fabricated identity or QR.
 2. Send each phone cue and check name/meaning/symbol/color. Inspect Options last-update time.
 3. Swipe and use bezel/rotary while locked; cue must stay stable while normal system navigation remains usable.
-4. Cancel Unlock; then confirm unlock, choose a cue, verify relock and persistence after restart. It must not change the phone.
-5. Retry unchanged phone state/Sync now: local cue remains. Change phone content: accepted newer snapshot restores phone cue and relocks.
+4. Cancel Unlock; then confirm unlock, choose a cue, verify relock and persistence after restart. Verify the phone and authenticated profile row reflect that cue.
+5. With the phone offline, make several watch choices. Reopen the watch and confirm its pending indication. Reconnect and use Sync now on the phone. The latest choice should persist in Supabase and on both devices. Repeat with a new phone choice made before delivery. The phone choice should persist.
 6. Share while locked, scan with another Unspoken Cues phone, test Close, Back and 30-second timeout. Use a small round display and large system text; verify the whole QR/quiet zone is visible.
 7. Make profile private, sign out, change A→B, restart apps and disconnect/reconnect. After newer delivery, stale QR/identity closes/clears. While offline the watch can only display its old cache.
 8. Reset/reinstall phone with changed clock; new generation must recover. Deliver an older/equal/retired snapshot in controlled tests and ensure it cannot overwrite the accepted state.
@@ -55,7 +57,7 @@ Record commit/build/environment/device/OS and actual outcomes. Test accounts/tok
 | --- | --- |
 | No received state | Phone sign-in/onboarding/profile load, paired nodes/Play services, installed debug ID and certificate match; phone Sync now |
 | Phone says Connected but watch unchanged | Indicator is connected nodes, not app acknowledgment; check installed companion, schema/path and accepted revision |
-| Local color survives retry | Expected when phone content/revision unchanged; select a different phone cue to make a new snapshot |
+| Waiting for phone to save | Confirm updated companions, signed-in profile and network access, then select Sync now on the phone. Incoming profile-only updates preserve a pending cue. |
 | QR unavailable | Last accepted profile must be public with a valid token; watch cannot query the backend itself |
 | Old identity while offline | Cache cannot be cleared until delivery; keep phone open/reconnected long enough to publish/accept newer snapshot |
 | New state ignored | Unsupported schema, invalid cue, nonpositive revision, blank/retired publisher, equal/older current-generation revision |

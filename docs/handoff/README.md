@@ -8,7 +8,7 @@ Read [architecture and protocol](architecture.md), then [setup, testing and trou
 
 The watch displays one Unspoken Cues status with a distinct symbol, name and meaning. A paired phone supplies cue, display name and a shareable card token through Google Play services Data Layer. The watch persists its last accepted state for disconnected use. Options contains profile QR sharing, deliberate color unlocking, a cue guide and last-update time.
 
-The application supports Wear OS API 30+; it is a normal activity, not a watch-face service. It does not force always-on illumination. It has no Supabase client, account login, backend credential, camera, event browser or binder. Local watch color choices do not update the phone/server; newer accepted phone content replaces them.
+The application supports Wear OS API 30+; it is a normal activity, not a watch-face service. It does not force always-on illumination. It has no Supabase client, account login, backend credential, camera, event browser or binder. With a current companion, the watch journals a cue selection and the signed-in phone saves it to the profile. Older companions support local watch color selection.
 
 ## Read this before publishing
 
@@ -23,6 +23,7 @@ Kotlin root: [`app/src/main/java/com/unspokencues/wear`](../../app/src/main/java
 | `MainActivity.kt` | Creates WatchStore, polls current DataItems while STARTED every 30 seconds, registers preference listener, renders WatchApp |
 | `model/WatchState.kt` | Cue enum/colors/copy, SharedProfile/card link, PhoneSnapshot validation, lock/select/receive rules, publisher ordering |
 | `data/WatchStore.kt` | Synchronized SharedPreferences persistence, receive deduplication/retirement, stale local write protection |
+| `model/CueSync.kt`, `sync/CueTransport.kt` | Pending request and receipt rules, snapshot decoding, serialized Data Layer publication |
 | `sync/WatchSyncService.kt` | Manifest Data Layer listener and exact path/schema parsing; forwards validated snapshots to store |
 | `ui/WatchApp.kt` | Status/Options/Guide/Unlock/Select/Share navigation; back/relock, QR timeout, accessible cue semantics |
 | `ui/CueSymbol.kt` | Canvas check/triangle/stop/question shapes and labels; no reliance on emoji fonts |

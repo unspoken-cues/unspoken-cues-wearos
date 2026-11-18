@@ -17,7 +17,7 @@ class WatchAppTest {
         compose.setContent {
             var state by remember { mutableStateOf(WatchState(CueStatus.YELLOW,
                 SharedProfile("Alex", "0123456789abcdef0123456789abcdef", true), receivedAt = 1)) }
-            WatchApp(state, onStateChange = { state = it })
+            WatchApp(state, onStateChange = { state = it }, onCueSelected = { state = state.select(it) })
         }
     }
     @Test fun swipeDoesNotChangeLockedStatus() {

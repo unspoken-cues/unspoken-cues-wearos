@@ -16,8 +16,14 @@ flowchart TD
     Store --> Prefs[watch_state SharedPreferences]
     Prefs --> Listener[Activity preference listener]
     Listener --> UI[WatchApp]
-    UI --> Local[WatchStore.saveLocal]
+    UI --> Local[WatchStore.select]
     Local --> Prefs
+    Local --> Outbox[CueOutbox]
+    Outbox --> Request[Wear cue-request DataItem]
+    Request --> PhoneSync[Signed-in phone reconciliation]
+    PhoneSync --> Profile[Supabase profile]
+    Profile --> PhoneSync
+    PhoneSync --> Data
 ```
 
 The app is Kotlin/Compose with one Android application module. There are no ViewModels, navigation framework, Room database, HTTP repository, WorkManager jobs or backend synchronization credentials. `WatchState` is pure Kotlin rules; `WatchStore` owns persisted state; the service and activity reconcile incoming snapshots; Compose owns transient screen selection.
@@ -41,7 +47,11 @@ The DataItem path must be exactly `/unspoken-cues/state`. Manifest filtering use
 
 Phone sends no email, session, Auth credential, profile preferences/boundaries, image or account UUID. The card token is still sensitive as a sharing capability. `SharedProfile.link` lowercases it into `unspokencues://card/<token>`. Public active data without a valid token retains the cue but discards the profile; private data may retain a name but cannot produce `WatchState.shareLink`. Inactive data clears both irrespective of other fields.
 
-The phone gates publishing on a confirmed session, correctly loaded profile and completed onboarding. It submits immediate changes and retries unchanged content every 30 seconds while its root composition lives. Same-account loading can preserve watch cache; confirmed different-account loading sends clear. Sign-out sends clear after definite session state. It is not a guaranteed phone background worker. The pill on the phone counts connected nodes rather than application receipts.
+The phone gates sharing on a confirmed session, loaded profile and completed onboarding. An updated phone reads staged watch requests on delivery, while open and when the participant chooses Sync now. A definite account change or sign-out invalidates prior requests. Connected node count and profile save feedback are independent.
+
+The active snapshot adds `generation` (opaque session UUID), `cueRevision` (positive Long), `receipt` and `receiptWriter` (operation and installation UUID strings), and `receiptBase` and `receiptSequence` (Long). Empty strings and zeros indicate no receipt. All six extension fields must be present with valid types for two-way operation. A schema-1 snapshot with no extension remains readable and supports local-only watch selection.
+
+The watch sends schema 1 at `/unspoken-cues/cue-request` with only `generation`, `baseRevision`, `operation`, `status`, `writer` and `sequence`. Each selection replaces the previous DataItem at this path. The watch persists its writer UUID, increasing sequence, operation UUID, selected cue and base before attempting delivery. A successful Data Layer put only queues transport. The pending indicator stays visible until an authoritative phone snapshot arrives.
 
 ## Ordering and persistence
 
@@ -49,7 +59,7 @@ Phone keeps `watch_publisher` preferences containing current fields, revision an
 
 Watch `watch_state` stores status, has_profile/name/token/public, locked, received, revision, publisher and retired_publishers. Store operations synchronize on a common monitor. `SnapshotOrder` accepts a new unseen non-retired generation even at a lower revision; it accepts the current generation only at a strictly higher revision. A generation switch retires the previous one permanently in this cache. Delayed retired data cannot restore an old identity. This assumes one logical phone owner; simultaneous publisher arbitration is not implemented.
 
-Accepted receive persists the full state, records local receipt time and relocks the cue. A local save only changes status/lock and only when UI revision/publisher still match the stored values. This prevents stale UI callbacks from overwriting newer phone state. Equal/old snapshot retries do not override a locally selected color. Manual phone Sync now does not force a new revision for unchanged content.
+Accepted snapshots persist the full state, update the local receipt time and relock the cue. An explicit selection uses the current committed cue revision or keeps the base of an outstanding request. A new profile-only snapshot preserves the selection. An older receipt from the same writer and base also preserves it. An exact receipt clears pending and reports the save. A newer independent phone choice restores the authoritative color. The phone can advance the transport revision independently of the cue revision, including when Sync now republishes an unchanged cue.
 
 Watch backups are disabled and shared preferences additionally excluded from extraction/transfer. Clearing watch app data loses the cache, retired-generation history and local color. The activity can recover current DataItems on restart if available; it cannot obtain a fresh backend state independently.
 
@@ -72,4 +82,4 @@ QR uses ZXing error correction M, black on white, four quiet modules per edge an
 
 Disconnected cache remains until a newer clear/private snapshot arrives. Setting Private on the phone withholds the token in new snapshots but does not remotely erase an offline device. The backend swap RPC accepts existing valid tokens even for private profiles, and tokens have no expiry/revocation flow. Existing swaps can read private profile rows. Do not promise immediate revocation.
 
-There is no watch-to-phone write, conflict resolver, application receipt, transport integration harness or multi-phone owner selector. A newer phone content snapshot replaces a local color even while locked. Local locking protects against accidental watch interaction, not phone updates. See the [testing and troubleshooting guide](testing.md) before changing these semantics.
+Play services can deliver an already staged request when connectivity returns. Opening the watch app, its 30-second foreground poll and incoming phone state also retry a persisted request. If local Play services could not stage the initial request and both apps are closed, reopen the watch or trigger Sync now on the phone. If the signed-in phone is offline, the watch keeps its pending indication until backend reconciliation or a superseding edit. [Testing and troubleshooting guide](testing.md)
