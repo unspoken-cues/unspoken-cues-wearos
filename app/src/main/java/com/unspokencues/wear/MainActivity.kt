@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.gms.wearable.Wearable
 import com.unspokencues.wear.data.WatchStore
+import com.unspokencues.wear.sync.publishPending
 import com.unspokencues.wear.sync.receiveDataItem
 import com.unspokencues.wear.ui.WatchApp
 import kotlinx.coroutines.delay
@@ -23,6 +24,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
+                    publishPending(this@MainActivity)
                     Wearable.getDataClient(this@MainActivity).dataItems
                         .addOnSuccessListener { items ->
                             try { items.forEach { receiveDataItem(this@MainActivity, it) } }
@@ -32,16 +34,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        setContent {
-            var state by remember { mutableStateOf(store.read()) }
-            DisposableEffect(store) {
-                val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> state = store.read() }
-                store.preferences.registerOnSharedPreferenceChangeListener(listener)
-                // Close the gap between initial read and listener registration.
-                state = store.read()
-                onDispose { store.preferences.unregisterOnSharedPreferenceChangeListener(listener) }
-            }
-            WatchApp(state) { store.saveLocal(it) }
-        }
+        setContent { StoredWatchApp(store) { publishPending(this) } }
     }
+}
+
+@Composable
+internal fun StoredWatchApp(store: WatchStore, onPending: () -> Unit) {
+    var state by remember { mutableStateOf(store.read()) }
+    DisposableEffect(store) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> state = store.read() }
+        store.preferences.registerOnSharedPreferenceChangeListener(listener)
+        // Close the gap between initial read and listener registration.
+        state = store.read()
+        onDispose { store.preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    WatchApp(state, onStateChange = store::saveLock, onCueSelected = { cue ->
+        if (store.select(state, cue)) onPending()
+    })
 }

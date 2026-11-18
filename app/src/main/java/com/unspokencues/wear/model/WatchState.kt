@@ -18,7 +18,11 @@ data class SharedProfile(val name: String, val token: String, val isPublic: Bool
             ?.let { "unspokencues://card/${it.lowercase()}" }
 }
 
-data class PhoneSnapshot(val status: CueStatus?, val profile: SharedProfile?) {
+data class PhoneSnapshot(
+    val status: CueStatus?,
+    val profile: SharedProfile?,
+    val authority: CueAuthority? = null,
+) {
     companion object {
         fun fromWire(status: String?, name: String, token: String, isPublic: Boolean,
                      active: Boolean): PhoneSnapshot? {
@@ -37,14 +41,29 @@ data class WatchState(
     val receivedAt: Long = 0,
     val revision: Long = 0,
     val publisherId: String = "",
+    val authority: CueAuthority? = null,
+    val pending: CueRequest? = null,
+    val result: CueResult? = null,
 ) {
     val shareLink: String? get() = profile?.takeIf { it.isPublic }?.link
     fun unlock(): WatchState = copy(locked = false)
     fun select(cue: CueStatus): WatchState =
         if (locked) this else copy(status = cue, locked = true)
-    fun receive(snapshot: PhoneSnapshot, now: Long, remoteRevision: Long = revision): WatchState =
-        copy(status = snapshot.status, profile = snapshot.profile, locked = true,
-            receivedAt = now, revision = remoteRevision)
+    fun receive(snapshot: PhoneSnapshot, now: Long, remoteRevision: Long = revision): WatchState {
+        val authority = snapshot.authority
+        val outstanding = pending?.takeIf { authority != null && it.awaitsCommit(authority) }
+        val result = when {
+            authority == null || authority.generation != this.authority?.generation -> null
+            outstanding != null -> null
+            pending?.confirmedBy(snapshot) == true -> CueResult.SAVED
+            pending != null -> CueResult.SUPERSEDED
+            authority.revision == this.authority.revision -> this.result
+            else -> null
+        }
+        return copy(status = outstanding?.status ?: snapshot.status, profile = snapshot.profile,
+            locked = true, receivedAt = now, revision = remoteRevision, authority = authority,
+            pending = outstanding, result = result)
+    }
 }
 
 /** Reinstalled phones start a new generation; retired generations cannot revive cached identities. */
