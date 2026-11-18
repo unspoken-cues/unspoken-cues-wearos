@@ -96,3 +96,5 @@ Design and implementation notes: [design](docs/design.md), [plan](docs/implement
 - Swipe-down must remain normal Wear OS system behavior; don't intercept it.
 - QR times out back to the previously active status.
 - Final Play identity is `com.unspokencues.wear` — do not leave a `playtest` applicationId in a release build.
+
+[Watch event alert setup and paired-device checks](docs/design/watch-event-alerts.md)

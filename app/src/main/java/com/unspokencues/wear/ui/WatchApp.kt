@@ -19,11 +19,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.*
 import com.unspokencues.wear.model.*
+import com.unspokencues.wear.alerts.AlertOptions
 import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
 
-private enum class Screen { STATUS, OPTIONS, GUIDE, UNLOCK, SELECT, SHARE }
+private enum class Screen { STATUS, OPTIONS, GUIDE, UNLOCK, SELECT, SHARE, ALERTS }
 
 @Composable
 fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit) {
@@ -50,12 +51,18 @@ fun WatchApp(state: WatchState, onStateChange: (WatchState) -> Unit) {
                 Action(if (state.locked) "Color locked" else "Change color") {
                     screen = if (state.locked) Screen.UNLOCK else Screen.SELECT
                 }
+                Action("Event alerts") { screen = Screen.ALERTS }
                 Action("Cue guide") { screen = Screen.GUIDE }
                 if (state.shareLink == null) Body(
                     if (state.profile?.isPublic == false) "Profile private. Edit on phone."
                     else "Sync your profile from your phone.")
                 if (state.receivedAt > 0) Body(
                     "Updated ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(state.receivedAt))}")
+                Action("Back to cue") { screen = Screen.STATUS }
+            }
+            Screen.ALERTS -> WatchColumn {
+                Heading("Event alerts")
+                AlertOptions()
                 Action("Back to cue") { screen = Screen.STATUS }
             }
             Screen.GUIDE -> WatchColumn {
