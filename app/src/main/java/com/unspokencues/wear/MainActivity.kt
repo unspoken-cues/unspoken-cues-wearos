@@ -16,6 +16,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    override fun onResume() {
+        super.onResume()
+        com.unspokencues.wear.alerts.AnnouncementAlerts(this).reconcile()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val store = WatchStore(this)
