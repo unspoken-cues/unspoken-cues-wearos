@@ -24,3 +24,7 @@ Install the phone APK on the phone and the Wear APK on the watch. Both debug var
 ## Watch verification
 
 On November 18, 2026, `bash gradlew assembleDebug testDebugUnitTest compileDebugAndroidTestKotlin lintDebug --max-workers=2` passed using Android Studio's JDK and SDK 37. All 16 JVM tests passed. Lint reported 13 warnings and zero errors. The device suite `com.unspokencues.wear.WatchCueSyncTest` drives the normal picker, durable store, serialized Data Layer payloads and receipts using an injected transport. The remaining physical checks cover paired delivery, signed-in Supabase writes and matching release signatures.
+
+## Device verification
+
+All three WatchCueSyncTest cases and all four existing WatchAppTest cases passed on the API 37 Wear emulator with Espresso 3.7.0. The tests exercised the real cue picker, pending store, DataMap and receipt handling using an injected transport. A physical paired-device run remains separate.
